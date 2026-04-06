@@ -50,6 +50,7 @@ export interface JobOpening {
   techStack: string[];
   createdAt: string;
   applicantCount: number;
+  deadline?: string;
   description?: string;
   benefits?: string[];
 }
@@ -73,6 +74,10 @@ export interface JobApplication {
   relevanceScore: number;
   experienceYears: number;
   notes?: string;
+  interviewDate?: string;
+  interviewTime?: string;
+  interviewLocation?: string;
+  interviewMode?: string;
 }
 
 export interface PlatformStat {

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 /**
@@ -8,7 +7,6 @@ import { GoogleGenAI } from "@google/genai";
 export const fetchSmartDescription = async (role: string, org: string, skills: string[]) => {
   try {
     const api = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
     // Explicit system prompt to ensure high quality and professional tone
     const instruction = `You are a professional HR specialist. Generate a comprehensive job description for:
     Role: ${role}

@@ -1,6 +1,5 @@
 
 import { JobOpening, JobApplication } from './types';
-
 export const initialJobPostings: JobOpening[] = [
   {
     id: 'job-v01',

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JobOpening, Message, JobApplication } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
@@ -168,6 +168,34 @@ const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
                     </button>
                   </div>
                 </div>
+                {app.reviewStatus === 'Interview' && app.interviewDate && (
+                  <div className="bg-slate-50 border-t border-slate-100 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex gap-6 items-center w-full md:w-auto">
+                       <div className="w-14 h-14 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center text-blue-600">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Interview Scheduled</p>
+                          <h4 className="text-xl font-black text-slate-900 leading-none">{app.interviewDate} at {app.interviewTime}</h4>
+                          <LiveCountdown date={app.interviewDate || ''} time={app.interviewTime || ''} mode={app.interviewMode || ''} />
+                       </div>
+                    </div>
+                    <div className="w-full md:w-auto bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                       <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                       </div>
+                       <div className="flex-1 max-w-[200px] truncate">
+                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{app.interviewMode === 'Offline' ? 'Location' : 'Link'}</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">{app.interviewLocation}</p>
+                       </div>
+                       {app.interviewMode === 'Offline' ? (
+                         <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(app.interviewLocation || '')}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-100 transition-colors whitespace-nowrap">Map</a>
+                       ) : (
+                         <a href={app.interviewLocation} target="_blank" rel="noreferrer" className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-100 transition-colors whitespace-nowrap">Join Link</a>
+                       )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -246,6 +274,55 @@ const ApplicationTracker: React.FC<ApplicationTrackerProps> = ({
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+};
+
+const LiveCountdown = ({ date, time, mode }: { date: string, time: string, mode: string }) => {
+  const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+  const [status, setStatus] = useState<string>('Upcoming');
+
+  useEffect(() => {
+    if (!date || !time) return;
+    const updateCountdown = () => {
+      const interviewDateTime = new Date(`${date}T${time}`).getTime();
+      const now = new Date().getTime();
+      const diff = interviewDateTime - now;
+      
+      if (diff > 0) {
+        setTimeLeft({
+          d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          h: Math.floor((diff / (1000 * 60 * 60)) % 24),
+          m: Math.floor((diff / 1000 / 60) % 60),
+          s: Math.floor((diff / 1000) % 60)
+        });
+        if (diff < 1000 * 60 * 60) setStatus('Starting Soon');
+      } else if (diff > -1000 * 60 * 60) {
+        setTimeLeft(null);
+        setStatus('In Progress');
+      } else {
+        setTimeLeft(null);
+        setStatus('Completed');
+      }
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [date, time]);
+
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <span className="px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-600">{mode} • {mode === 'Offline' ? 'In-person' : 'Virtual'}</span>
+      {timeLeft ? (
+        <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 ${status === 'Starting Soon' ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-600'}`}>
+           <div className={`w-2 h-2 rounded-full ${status === 'Starting Soon' ? 'bg-amber-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
+           In: {timeLeft.d}d {timeLeft.h}h {timeLeft.m}m {timeLeft.s}s
+        </span>
+      ) : (
+        <span className={`px-2 py-1 rounded text-xs font-bold ${status === 'In Progress' ? 'bg-emerald-100 text-emerald-700 animate-pulse' : 'bg-slate-100 text-slate-500'}`}>
+           {status}
+        </span>
       )}
     </div>
   );

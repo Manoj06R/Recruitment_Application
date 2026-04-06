@@ -1,8 +1,0 @@
-{
-  "name": "Recruitment Web Development",
-  "description": "A modern, responsive recruitment platform for job seekers and recruiters with AI-powered job description generation.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}

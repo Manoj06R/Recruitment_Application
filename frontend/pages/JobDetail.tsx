@@ -15,6 +15,27 @@ const JobDetail: React.FC<JobDetailProps> = ({ jobId, jobPostings, onApply, isAp
   const [job, setJob] = useState<JobOpening | null>(null);
   const [aiContent, setAiContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+
+  useEffect(() => {
+    if (!job?.deadline) return;
+    const updateCountdown = () => {
+      const diff = new Date(job.deadline!).getTime() - new Date().getTime();
+      if (diff > 0) {
+        setTimeLeft({
+          d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+          h: Math.floor((diff / (1000 * 60 * 60)) % 24),
+          m: Math.floor((diff / 1000 / 60) % 60),
+          s: Math.floor((diff / 1000) % 60)
+        });
+      } else {
+        setTimeLeft(null); // Passed
+      }
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [job?.deadline]);
 
   useEffect(() => {
     // Correctly using the jobPostings prop for lookup to include dynamic data
@@ -95,6 +116,24 @@ const JobDetail: React.FC<JobDetailProps> = ({ jobId, jobPostings, onApply, isAp
         </div>
 
         <div className="space-y-6">
+          {job.deadline && timeLeft && (
+            <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-[50px] -mt-10 -mr-10"></div>
+              <h3 className="text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Application Deadline
+              </h3>
+              <div className="flex gap-4">
+                 <div className="text-center"><span className="block text-3xl font-black">{timeLeft.d}</span><span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Days</span></div>
+                 <span className="text-2xl font-bold text-slate-600 self-start">:</span>
+                 <div className="text-center"><span className="block text-3xl font-black">{timeLeft.h}</span><span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Hrs</span></div>
+                 <span className="text-2xl font-bold text-slate-600 self-start">:</span>
+                 <div className="text-center"><span className="block text-3xl font-black">{timeLeft.m}</span><span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Min</span></div>
+                 <span className="text-2xl font-bold text-slate-600 self-start">:</span>
+                 <div className="text-center"><span className="block text-3xl font-black text-emerald-400">{timeLeft.s}</span><span className="text-[9px] text-slate-400 uppercase font-bold tracking-widest">Sec</span></div>
+              </div>
+            </div>
+          )}
           <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm sticky top-28">
             <h3 className="text-lg font-bold text-slate-900 mb-6">Job Summary</h3>
             <div className="space-y-6 mb-8">

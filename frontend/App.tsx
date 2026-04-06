@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Landing from './pages/Landing';
@@ -12,18 +11,28 @@ import ApplicationTracker from './pages/ApplicationTracker';
 import ApplicantDetail from './pages/ApplicantDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import { UserProfile, AccountType, JobOpening, Message, JobApplication } from './types';
-import { initialJobPostings, applicationRecords as initialApps } from './constants';
-
+import { api } from './services/api';
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('landing');
-  const [user, setUser] = useState<UserProfile | null>(null);
-  
-  const [jobPostings, setJobPostings] = useState<JobOpening[]>(initialJobPostings);
-  const [applications, setApplications] = useState<JobApplication[]>(initialApps);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [jobPostings, setJobPostings] = useState<JobOpening[]>([]);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
   const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [user]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -40,8 +49,22 @@ const App: React.FC = () => {
     };
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange();
+
+    // Fetch initial jobs
+    api.getJobs().then(setJobPostings).catch(console.error);
+
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      api.getApplications(user.accountType === AccountType.CANDIDATE ? { candidateId: user.uid } : undefined)
+        .then(setApplications)
+        .catch(console.error);
+    } else {
+      setApplications([]);
+    }
+  }, [user]);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -49,26 +72,17 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAuthSuccess = (userData: Partial<UserProfile>) => {
+  const handleAuthSuccess = (userData: any) => {
     const fullUser: UserProfile = {
-      uid: Math.random().toString(36).substr(2, 9),
-      fullName: userData.fullName || 'Demo User',
-      contactEmail: userData.contactEmail || '',
-      accountType: userData.accountType || AccountType.CANDIDATE,
-      skills: ['React', 'TypeScript', 'Tailwind CSS'],
-      resumes: [],
-      experiences: [
-        { role: 'Frontend Developer', company: 'Digital Pulse', period: '2021 - Present', desc: 'Building responsive web applications.' }
-      ],
-      jobAlerts: [],
-      ...userData
-    } as UserProfile;
-    
+      ...userData,
+      uid: userData._id || userData.uid || Math.random().toString(36).substr(2, 9),
+    };
+
     setUser(fullUser);
-    const destination = fullUser.accountType === AccountType.ADMIN 
-      ? 'admin-dashboard' 
-      : fullUser.accountType === AccountType.EMPLOYER 
-        ? 'recruiter-dashboard' 
+    const destination = fullUser.accountType === AccountType.ADMIN
+      ? 'admin-dashboard'
+      : fullUser.accountType === AccountType.EMPLOYER
+        ? 'recruiter-dashboard'
         : 'seeker-dashboard';
     handleNavigate(destination);
   };
@@ -79,25 +93,24 @@ const App: React.FC = () => {
     handleNavigate('landing');
   };
 
-  const handleApply = (jobId: string) => {
+  const handleApply = async (jobId: string) => {
     if (!user) return;
     const isAlreadyApplied = applications.some(app => app.jobId === jobId && app.candidateId === user.uid);
     if (!isAlreadyApplied) {
-      const newApp: JobApplication = {
-        id: `app-${Date.now()}`,
-        jobId: jobId,
-        candidateId: user.uid,
-        candidateName: user.fullName,
-        candidateEmail: user.contactEmail,
-        submittedAt: new Date().toLocaleDateString(),
-        reviewStatus: 'In Review',
-        resumeLink: '#',
-        relevanceScore: Math.floor(Math.random() * 20) + 80,
-        experienceYears: 4,
-      };
-      setApplications(prev => [newApp, ...prev]);
-      setJobPostings(prev => prev.map(j => j.id === jobId ? { ...j, applicantCount: j.applicantCount + 1 } : j));
-      handleNavigate('seeker-applications');
+      try {
+        const newApp = await api.applyForJob({
+          jobId,
+          candidateId: user.uid,
+          candidateName: user.fullName,
+          candidateEmail: user.contactEmail
+        });
+        setApplications(prev => [newApp, ...prev]);
+        setJobPostings(prev => prev.map(j => j.id === jobId ? { ...j, applicantCount: (j.applicantCount || 0) + 1 } : j));
+        handleNavigate('seeker-applications');
+      } catch (err) {
+        console.error('Application failed:', err);
+        alert('Failed to apply. ' + (err as Error).message);
+      }
     }
   };
 
@@ -105,13 +118,38 @@ const App: React.FC = () => {
     setSavedJobIds(prev => prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]);
   };
 
-  const handleUpdateProfile = (updates: Partial<UserProfile>) => {
-    if (user) setUser(prev => prev ? { ...prev, ...updates } : null);
+  const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user) return;
+    
+    // Optimistic update
+    setUser(prev => prev ? { ...prev, ...updates } : null);
+    
+    try {
+      await api.updateProfile(user.uid, updates);
+    } catch (err) {
+      console.error('Failed to update profile silently:', err);
+    }
   };
 
-  const handlePostJob = (newJob: JobOpening) => {
-    setJobPostings([newJob, ...jobPostings]);
-    handleNavigate('recruiter-dashboard');
+  const handlePostJob = async (newJob: JobOpening) => {
+    try {
+      const created = await api.createJob(newJob);
+      setJobPostings([created, ...jobPostings]);
+      handleNavigate('recruiter-dashboard');
+    } catch (err) {
+      console.error('Failed to post job:', err);
+      alert('Failed to post job.');
+    }
+  };
+
+  const handleUpdateApplication = async (appId: string, updates: Partial<JobApplication>) => {
+    try {
+      const updatedApp = await api.updateApplication(appId, updates);
+      setApplications(prev => prev.map(a => a.id === appId ? { ...a, ...updatedApp } : a));
+    } catch (err) {
+      console.error('Failed to update application:', err);
+      alert('Failed to update application.');
+    }
   };
 
   const appliedJobIds = user ? applications.filter(a => a.candidateId === user.uid).map(a => a.jobId) : [];
@@ -129,7 +167,7 @@ const App: React.FC = () => {
       case 'seeker-saved': return <SavedJobs jobPostings={jobPostings} appliedJobIds={appliedJobIds} savedJobIds={savedJobIds} onApply={handleApply} onToggleSave={handleToggleSave} />;
       case 'seeker-applications': return <ApplicationTracker jobPostings={jobPostings} applications={applications.filter(a => a.candidateId === user?.uid)} sentMessages={sentMessages} onSendMessage={(msg) => setSentMessages([msg, ...sentMessages])} onNavigate={handleNavigate} />;
       case 'job-detail': return <JobDetail jobId={selectedJobId} jobPostings={jobPostings} onApply={handleApply} isApplied={!!selectedJobId && appliedJobIds.includes(selectedJobId)} />;
-      case 'applicant-detail': return <ApplicantDetail applicationId={selectedAppId} applicationRecords={applications} onBack={() => handleNavigate('applicants')} />;
+      case 'applicant-detail': return <ApplicantDetail applicationId={selectedAppId} applicationRecords={applications} onBack={() => handleNavigate('applicants')} onUpdate={handleUpdateApplication} />;
       case 'seeker-profile': return <Profile user={user} appliedJobIds={appliedJobIds} onUpdate={handleUpdateProfile} />;
       case 'admin-dashboard': return <AdminDashboard jobPostings={jobPostings} applicationRecords={applications} />;
       case 'recruiter-dashboard':

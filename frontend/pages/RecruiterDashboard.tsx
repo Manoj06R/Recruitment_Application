@@ -15,7 +15,10 @@ const RecruiterDashboard: React.FC<RecruiterDashboardProps> = ({ jobPostings, ap
   const [isProcessing, setIsProcessing] = useState(false);
   const [focusJobId, setFocusJobId] = useState<string | null>(null);
 
-  const [jobForm, setJobForm] = useState({ title: '', loc: '', type: 'Permanent' as any, comp: '', stack: '', details: '' });
+  const [jobForm, setJobForm] = useState({ title: '', loc: '', type: 'Permanent' as any, comp: '', stack: '', details: '', deadline: '' });
+
+  const totalApplicants = applicationRecords.length;
+  const shortlistedCount = applicationRecords.filter(a => ['Shortlisted', 'Interview', 'Offered'].includes(a.reviewStatus)).length;
 
   const handleDownloadResume = (name: string) => {
     alert(`Downloading ${name}'s resume as PDF...`);
@@ -34,6 +37,7 @@ const RecruiterDashboard: React.FC<RecruiterDashboardProps> = ({ jobPostings, ap
       requirements: jobForm.details.substring(0, 100) + '...',
       description: jobForm.details,
       techStack: jobForm.stack.split(',').map(s => s.trim()),
+      deadline: jobForm.deadline,
       createdAt: 'Just now',
       applicantCount: 0
     };
@@ -50,8 +54,12 @@ const RecruiterDashboard: React.FC<RecruiterDashboardProps> = ({ jobPostings, ap
         </div>
         <div className="flex gap-4">
            <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Hiring Credits</p>
-              <p className="text-2xl font-black text-emerald-600 leading-none">14</p>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Applicants</p>
+              <p className="text-2xl font-black text-emerald-600 leading-none">{totalApplicants}</p>
+            </div>
+           <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-center">
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Shortlisted</p>
+              <p className="text-2xl font-black text-blue-600 leading-none">{shortlistedCount}</p>
             </div>
         </div>
       </div>
@@ -146,6 +154,10 @@ const RecruiterDashboard: React.FC<RecruiterDashboardProps> = ({ jobPostings, ap
               </div>
               <div><label className="label-style">Location</label><input type="text" className="input-style" value={jobForm.loc} onChange={e => setJobForm({...jobForm, loc: e.target.value})} /></div>
               <div><label className="label-style">Salary Range</label><input type="text" className="input-style" value={jobForm.comp} onChange={e => setJobForm({...jobForm, comp: e.target.value})} /></div>
+              <div className="col-span-2">
+                <label className="label-style">Application Deadline</label>
+                <input type="date" className="input-style" value={jobForm.deadline} onChange={e => setJobForm({...jobForm, deadline: e.target.value})} />
+              </div>
               <div className="col-span-2">
                 <textarea rows={8} className="input-style h-auto" placeholder="Role description..." value={jobForm.details} onChange={e => setJobForm({...jobForm, details: e.target.value})}></textarea>
               </div>

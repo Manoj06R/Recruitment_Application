@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AccountType, UserProfile } from '../types';
-
+import { api } from '../services/api';
 interface AuthProps {
   type: 'login' | 'signup';
   // Use Partial<UserProfile> to allow calling it with only core authentication fields
@@ -14,16 +14,32 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Correctly passing only the gathered fields to the partial-expecting handler
-    onAuthSuccess({
-      uid: Math.random().toString(36).substr(2, 9),
-      fullName: name || (type === 'login' ? 'Demo User' : 'New User'),
-      contactEmail: email,
-      accountType: role
-    });
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (type === 'login') {
+        const data = await api.login({ contactEmail: email, password });
+        onAuthSuccess(data.user);
+      } else {
+        const data = await api.register({
+          fullName: name || 'New User',
+          contactEmail: email,
+          password,
+          accountType: role
+        });
+        onAuthSuccess(data.user);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,6 +63,12 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-sm font-bold border border-rose-100">
+              {error}
+            </div>
+          )}
+
           {type === 'signup' && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Select Role</label>
@@ -98,6 +120,7 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
             <input
               type="password"
               required
+              minLength={6}
               className="mt-1 block w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -106,9 +129,10 @@ const Auth: React.FC<AuthProps> = ({ type, onAuthSuccess, onNavigate }) => {
 
           <button
             type="submit"
-            className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+            disabled={loading}
+            className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition disabled:opacity-50"
           >
-            {type === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? 'Processing...' : (type === 'login' ? 'Sign In' : 'Create Account')}
           </button>
         </form>
       </div>

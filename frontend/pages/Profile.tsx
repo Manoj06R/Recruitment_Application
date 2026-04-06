@@ -12,6 +12,19 @@ const Profile: React.FC<ProfileProps> = ({ user, appliedJobIds, onUpdate }) => {
   if (!user) return null;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onUpdate({ photoUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isExpModalOpen, setIsExpModalOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
@@ -95,8 +108,21 @@ const Profile: React.FC<ProfileProps> = ({ user, appliedJobIds, onUpdate }) => {
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm text-center">
-            <div className="w-32 h-32 bg-emerald-50 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl text-emerald-600 font-bold border-4 border-emerald-50 ring-2 ring-emerald-100/30">
-              {user.fullName.charAt(0).toUpperCase()}
+            <div className="relative w-32 h-32 mx-auto mb-6 group">
+              {user.photoUrl ? (
+                <img src={user.photoUrl} alt="Avatar" className="w-full h-full object-cover rounded-full border-4 border-emerald-50 ring-2 ring-emerald-100/30" />
+              ) : (
+                <div className="w-full h-full bg-emerald-50 rounded-full flex items-center justify-center text-4xl text-emerald-600 font-bold border-4 border-emerald-50 ring-2 ring-emerald-100/30">
+                  {user.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <input type="file" ref={avatarInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+              <button 
+                onClick={() => avatarInputRef.current?.click()} 
+                className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition opacity-0 group-hover:opacity-100"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
             </div>
             <h2 className="text-2xl font-black text-slate-950 mb-1 uppercase tracking-tight leading-none">{user.fullName}</h2>
             <p className="text-slate-500 font-medium mb-8 text-sm">{user.contactEmail}</p>

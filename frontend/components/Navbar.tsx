@@ -8,7 +8,6 @@ interface NavProps {
   navigate: (view: string) => void;
   activeView: string;
 }
-
 const Navbar: React.FC<NavProps> = ({ currentUser, onSignOut, navigate, activeView }) => {
   return (
     <nav className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-[100] px-6">

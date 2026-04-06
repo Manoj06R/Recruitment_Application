@@ -6,11 +6,23 @@ interface ApplicantDetailProps {
   applicationId: string | null;
   applicationRecords: JobApplication[];
   onBack: () => void;
+  onUpdate: (appId: string, updates: Partial<JobApplication>) => void;
 }
 
-const ApplicantDetail: React.FC<ApplicantDetailProps> = ({ applicationId, applicationRecords, onBack }) => {
+const ApplicantDetail: React.FC<ApplicantDetailProps> = ({ applicationId, applicationRecords, onBack, onUpdate }) => {
   const app = applicationRecords.find(a => a.id === applicationId) || applicationRecords[0];
-  const [status, setStatus] = useState(app.reviewStatus);
+  const [status, setStatus] = useState(app?.reviewStatus || 'In Review');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [interviewForm, setInterviewForm] = useState({ date: '', time: '', mode: 'Offline', location: '' });
+
+  const handleUpdateStatus = (newStatus: string) => {
+    if (newStatus === 'Interview') {
+      setIsModalOpen(true);
+    } else {
+      setStatus(newStatus as any);
+      onUpdate(app.id, { reviewStatus: newStatus as any });
+    }
+  };
 
   if (!app) return <div className="p-20 text-center font-bold text-slate-400">Application not found.</div>;
 
@@ -42,9 +54,9 @@ const ApplicantDetail: React.FC<ApplicantDetailProps> = ({ applicationId, applic
             </div>
 
             <div className="space-y-3">
-              <StatusBtn active={status === 'Shortlisted'} label="Shortlist" color="bg-emerald-600" onClick={() => setStatus('Shortlisted')} />
-              <StatusBtn active={status === 'Interview'} label="Schedule Interview" color="bg-blue-600" onClick={() => setStatus('Interview')} />
-              <StatusBtn active={status === 'Declined'} label="Decline" color="bg-rose-600" onClick={() => setStatus('Declined')} />
+              <StatusBtn active={status === 'Shortlisted'} label="Shortlist" color="bg-emerald-600" onClick={() => handleUpdateStatus('Shortlisted')} />
+              <StatusBtn active={status === 'Interview'} label="Schedule Interview" color="bg-blue-600" onClick={() => handleUpdateStatus('Interview')} />
+              <StatusBtn active={status === 'Declined'} label="Decline" color="bg-rose-600" onClick={() => handleUpdateStatus('Declined')} />
             </div>
           </div>
         </div>
@@ -88,6 +100,40 @@ const ApplicantDetail: React.FC<ApplicantDetailProps> = ({ applicationId, applic
            </div>
         </div>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Schedule Interview</h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full"><svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              setStatus('Interview');
+              onUpdate(app.id, { reviewStatus: 'Interview', interviewDate: interviewForm.date, interviewTime: interviewForm.time, interviewMode: interviewForm.mode, interviewLocation: interviewForm.location });
+              setIsModalOpen(false);
+            }} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Date</label><input type="date" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none" value={interviewForm.date} onChange={e => setInterviewForm({...interviewForm, date: e.target.value})} /></div>
+                <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Time</label><input type="time" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none" value={interviewForm.time} onChange={e => setInterviewForm({...interviewForm, time: e.target.value})} /></div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Mode</label>
+                <select className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none" value={interviewForm.mode} onChange={e => setInterviewForm({...interviewForm, mode: e.target.value})}>
+                  <option value="Offline">Offline (Office)</option>
+                  <option value="Online">Online (Zoom/Meet)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{interviewForm.mode === 'Offline' ? 'Company Address' : 'Meeting Link'}</label>
+                <input required type={interviewForm.mode === 'Offline' ? 'text' : 'url'} placeholder={interviewForm.mode === 'Offline' ? 'e.g. Chennai, Guindy...' : 'https://zoom.us/j/...'} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none" value={interviewForm.location} onChange={e => setInterviewForm({...interviewForm, location: e.target.value})} />
+              </div>
+              <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-lg shadow-xl hover:bg-emerald-600 transition-all mt-4">Confirm Schedule</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
